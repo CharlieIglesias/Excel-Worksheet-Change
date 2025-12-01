@@ -1,0 +1,70 @@
+Option Explicit
+
+Private Sub Worksheet_Change(ByVal Target As Range)
+    On Error GoTo FatalError    ' Global crash net
+
+    ' If events are already off, do not run — avoids recursion loops
+    If Application.EnableEvents = False Then Exit Sub
+    Application.EnableEvents = False
+
+    Dim ws As Worksheet
+    Dim infoSheet As Worksheet
+    Dim hitE As Range
+    Dim HitR As Range
+
+    Set ws = ThisWorkbook.Sheets("Periodic")
+    Set infoSheet = ThisWorkbook.Sheets("Information")
+
+    ' --- Concurrency Lock ---
+    If infoSheet.Range("H1").Value <> "" Then
+        MsgBox "Process already running by another user.", vbExclamation, "Process Already Running"
+        GoTo SafeExit
+    End If
+
+    infoSheet.Range("H1").Value = "Running"
+
+    ' --- Ignore multi-cell edits ---
+    If Target.CountLarge > 1 Then GoTo SafeExit
+
+    ' --- Only run logic for column E changes ---
+    Set hitE = Intersect(Target, ws.Columns("E"))
+    If Not hitE Is Nothing Then
+
+    ws.Unprotect Password:="yourpassword"
+    DoEvents
+
+    ' --- Your operations ---
+    Call ExpandTableOnInput("sheet", "tbl", Target)
+
+    ' --- Reprotect safely ---
+    ws.Protect Password:="yourpassword"
+
+    End If
+
+' --- Only run logic for column R changes ---
+    Set hitR = Intersect(Target, ws.Columns("R"))
+    If Not hitR Is Nothing Then 
+
+    ws.Unprotect Password:="yourpassword"
+    DoEvents
+
+    ' --- Your operations ---
+    Call TimestampHelper("sheet", "tbl", "Current Status", Target)
+    Call AddNewRow("sheet", "tbl", "Current Status".......)
+
+    ' --- Reprotect safely ---
+    ws.Protect Password:="yourpassword"
+
+    End If
+
+SafeExit:
+    ' Always unlock and restore events
+    infoSheet.Range("H1").Value = ""
+    Application.EnableEvents = True
+    Exit Sub
+
+FatalError:
+    ' Hard error path, still restores everything
+    MsgBox "Error: " & Err.Description, vbCritical, "Unexpected Error"
+    Resume SafeExit
+End Sub
