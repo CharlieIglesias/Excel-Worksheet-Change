@@ -1,0 +1,56 @@
+Option Explicit
+
+Public Sub ExpandTableOnInput( _
+    wsName As String, _
+    tableName As String, _
+    changedCell As Range)
+
+    On Error GoTo FatalError
+
+    Dim ws As Worksheet
+    Dim lo As ListObject
+    Dim lastRowCell As Range
+    Dim nextRowCell As Range
+    Dim userValue As Variant
+    Dim newRow As ListRow
+    Dim dataRange As Range
+
+    ' Validate changedCell early
+    If changedCell Is Nothing Then GoTo SafeExit
+    If changedCell.Cells.CountLarge > 1 Then GoTo SafeExit
+
+    ' Validate worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(wsName)
+    On Error GoTo FatalError
+    If ws Is Nothing Then GoTo SafeExit
+
+    ' Validate table
+    On Error Resume Next
+    Set lo = ws.ListObjects(tableName)
+    On Error GoTo FatalError
+    If lo Is Nothing Then GoTo SafeExit
+
+    ' Validate data range
+    Set dataRange = lo.DataBodyRange
+    If dataRange Is Nothing Then GoTo SafeExit
+
+    ' Column 5 is the reference
+    Set nextRowCell = lo.DataBodyRange.Rows(lo.DataBodyRange.Rows.Count).Cells(5).Offset(1, 0)
+
+    ' Only act if the changed cell IS that next-row "input cell"
+    If Intersect(changedCell, nextRowCell) Is Nothing Then GoTo SafeExit
+
+    userValue = changedCell.Value
+    If Trim(CStr(userValue)) = "" Then GoTo SafeExit
+
+    changedCell.Value = userValue
+
+SafeExit:
+    Exit Sub
+
+FatalError:
+    ' Should Not Fire Due To Worksheet Protection Logic
+    Resume SafeExit
+
+End Sub
